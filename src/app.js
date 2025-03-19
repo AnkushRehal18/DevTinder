@@ -1,19 +1,21 @@
 const express = require('express')
 
+const app = express();
 
-const app = express ();
+app.get("/user", (req, res, next) => {
+    console.log("handling route of first user");
+    next();
 
-app.use("/",(req,res)=>{
-    res.send("this is the home page..");
-})
+}, (req, res ,next) => {
+    console.log("handling route user 2");
+    // res.send("2nd reposne");
+    next();
+}, (req,res,next)=>{
+    console.log("handling route user 3");
+    // res.send("3rd reposne");
+    // next();
+});
 
-app.use("/student" , (req,res)=>{
-    res.send("this is the student page..");
-})
-app.use("/test",(req,res)=>{
-    res.send("Hello From the server");
-})
-
-app.listen(3000 , ()=>{
+app.listen(3000, () => {
     console.log("Server is successfully listening on port 3000");
 });

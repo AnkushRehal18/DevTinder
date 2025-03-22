@@ -1,20 +1,35 @@
 const express = require('express')
-
+// const {userAuth} = require('./Middlewares/auth');
+const connectDB = require('./config/database');
+const User = require('./models/user'); 
 const app = express();
 
-const {adminAuth , userAuth} = require("./Middlewares/auth");
-
-app.use("/admin",adminAuth);
-
-app.get("/admin/getAllData",(req,res)=>{
-    // check if the request is authorized
-    // if not then send a response you are not the Admin
-    res.send("All Data Sent");
+app.post("/signup", async (req,res)=>{
+    const user = new User({
+        firstName:"Virat",
+        lastName:"Kohli",
+        emailId:"Virat@Kohli.com",
+        password:"Virat@123"
+    });
+    try{
+        await user.save();
+        res.send("User added successfully");
+    }
+    catch(err){
+        res.status(400).send("error saving the user " , err.message);
+    }
     
-});
-app.get("/user", userAuth, (req,res)=>{
-    res.send("User Data is here");
-});
-app.listen(3000, () => {
-    console.log("Server is successfully listening on port 3000");
-});
+   
+    // const user = new User(userObj);
+})
+
+
+
+connectDB().then(()=>{
+    console.log("Database connection successfully");
+    app.listen(3000, () => {
+        console.log("Server is successfully listening on port 3000");
+    });
+}).catch((err)=>{
+    console.log("Database cannot be connected",err);
+}) 

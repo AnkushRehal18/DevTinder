@@ -1,33 +1,83 @@
 const express = require('express')
 // const {userAuth} = require('./Middlewares/auth');
 const connectDB = require('./config/database');
-const User = require('./models/user'); 
+const bcrypt = require('bcrypt')
+const User = require('./models/user');
 const app = express();
-
+const validator = require('validator')
+const { validateSignupData } = require("./utils/validation")
 
 app.use(express.json());
 
-app.post("/signup", async (req,res)=>{
+app.post("/signup", async (req, res) => {
+
     // with hardcoding language
-    const user = new User(req.body);
-    try{
+    console.log(req.body)
+    try {
+        validateSignupData(req);
+
+        const {firstName , lastName , emailId , password } = req.body
+        // Encrypting the password 
+        const passwordHash = await bcrypt.hash(password , 10 );
+        console.log(passwordHash);
+
+        // creating a new user
+        const user = new User({
+            firstName,
+            lastName,
+            emailId,
+            password:passwordHash
+        });
+
         await user.save();
         res.status(200).send("User added successfully");
     }
-    catch(err){
+    catch (err) {
         res.status(400).send(`Error saving the user: ${err.message}`);
     }
 });
 
+// login path 
+
+app.post("/login" , async (req,res) => {
+    try{
+        const {emailId , password}  =  req.body;
+
+        // if(!validator.isEmail(emailId)){
+        //     throw new Error("Please provide a valid email");
+        // };
+
+        // finding the user with the email he provided 
+
+        const user = await User.findOne({emailId:emailId});
+
+        if(!user){
+            throw new Error("Invalid Credentials")
+        }
+        const isPasswordValid = await bcrypt.compare(password , user.password);
+
+        if(isPasswordValid){
+            res.status(200).send("Login Successfull");
+        }
+        else{
+            throw new Error("Password is not correct");
+        }
+        
+    }
+    catch(err){
+        res.status(400).send("Error : " + err );
+    }
+})
+
 // find user by email
 
-app.get("/user", async (req,res)=>{
+app.get("/user", async (req, res) => {
     const userEmail = req.body.emailId;
     console.log(userEmail)
-    try{
+    try {
         // use to find all the occurents of the document in the collection
         // const users = await User.find({emailId: userEmail}); 
-         // if(users.length === 0){
+        // if(users.length === 0){
         //     res.status(404).send("User not found");
         // }
         // else{
@@ -35,72 +85,88 @@ app.get("/user", async (req,res)=>{
         // } 
         // to find only one 
 
-        const user = await User.findOne({emailId: userEmail});
-        if(!user){
+        const user = await User.findOne({ emailId: userEmail });
+        if (!user) {
             res.status(404).send("Cannot find the user");
         }
-        else{
-            res.status(200).send(user); 
+        else {
+            res.status(200).send(user);
         }
-         
+
     }
-    catch(err){
-        res.status(400).send("Something went wrong",err);
+    catch (err) {
+        res.status(400).send("Something went wrong", err);
     }
 
 })
 
 // getting all the data from the db 
 
-app.get("/feed",async(req,res)=>{
-    try{
+app.get("/feed", async (req, res) => {
+    try {
         const users = await User.find({});
         res.status(200).send(users);
     }
-    catch(err){
+    catch (err) {
         console.log("Cannot find all of the users", err);
     }
-    
-    
+
+
 })
 
 // deleting the user form the database
 
-app.delete("/user", async(req,res)=>{
+app.delete("/user", async (req, res) => {
     const userId = req.body.userId;
-    try{
+    try {
         const user = await User.findByIdAndDelete(userId);
         res.status(200).send("User Deleted successfully");
     }
-    catch(err){
-        res.status(400).send("Cannot delete the user",err);
+    catch (err) {
+        res.status(400).send("Cannot delete the user", err);
     }
 })
 
 // updating the user 
 
-app.patch("/user", async(req,res)=>{
-    const userId = req.body.userId;
+app.patch("/user/:userId", async (req, res) => {
+    const userId = req.params?.userId;
     const data = req.body
+    try {
 
-    try{
-        const user = await User.findByIdAndUpdate({_id : userId} , data ,{
-            returnDocument :"after",
+        const ALLOWED_UPADTES = [
+            "photoUrl", "about", "gender", "age", "skills"
+        ]
+    
+        const isUpdateAllowed = Object.keys(data).every((k) =>
+            ALLOWED_UPADTES.includes(k)
+        )
+    
+        if(!isUpdateAllowed){
+            throw new Error("Update not allowed");
+        }
+
+        if(data?.skills.length > 10){
+            throw new error("skills cannot be more than 10")
+        };
+        
+        const user = await User.findByIdAndUpdate({ _id: userId }, data, {
+            returnDocument: "after",
             runValidators: true,
-            new : true
+            new: true
         });
         res.status(200).send("User updates successfully");
     }
-    catch(err){
+    catch (err) {
         res.status(400).send("Data cannot be updated " + err.message);
     }
 })
 
-connectDB().then(()=>{
-    console.log("Database connection successfully");
+connectDB().then(() => {
+
     app.listen(3000, () => {
         console.log("Server is successfully listening on port 3000");
     });
-}).catch((err)=>{
-    console.log("Database cannot be connected",err);
+}).catch((err) => {
+    console.log("Database cannot be connected", err);
 }) 

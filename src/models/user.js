@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-
+const validator = require('validator');
 const userSchema = new mongoose.Schema({
     firstName:{
         type: String,
@@ -14,11 +14,21 @@ const userSchema = new mongoose.Schema({
         type: String,
         required:true,
         index: true,
-        unique: true 
+        unique: true,
+        validate(value){
+            if(!validator.isEmail(value)){
+                throw new Error("Invalid Email address" + value);
+            }
+        }
     },
     password:{
         type: String,
         required:true,
+        validate(value){
+            if(!validator.isStrongPassword(value)){
+                throw new Error("Enter a strong password" + value);
+            }
+        }
     },
     age: {
         type: Number,
@@ -34,6 +44,11 @@ const userSchema = new mongoose.Schema({
     photoUrl: {
         type: String,
         default: "https://static.vecteezy.com/ti/vettori-gratis/p1/45944199-maschio-predefinito-segnaposto-avatar-profilo-grigio-immagine-isolato-su-sfondo-uomo-silhouette-immagine-per-utente-profilo-nel-sociale-media-forum-chiacchierare-in-scala-di-grigi-illustrazione-vettoriale.jpg",
+        validate(value){
+            if(!validator.isURL(value)){
+                throw new Error("Invalid photo url" + value);
+            }
+        }
     },
     about: {
         type: String,
@@ -46,4 +61,5 @@ const userSchema = new mongoose.Schema({
     timestamps:true
 });
 
+// const User = mongoose.model("User",userSchema);
 module.exports = mongoose.model("User",userSchema);

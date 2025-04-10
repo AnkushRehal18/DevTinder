@@ -6,8 +6,12 @@ const User = require('./models/user');
 const app = express();
 const validator = require('validator')
 const { validateSignupData } = require("./utils/validation")
+const cookieParser = require("cookie-parser")
+const jwt = require("jsonwebtoken")
 
+//middlewares
 app.use(express.json());
+app.use(cookieParser());
 
 app.post("/signup", async (req, res) => {
 
@@ -57,6 +61,12 @@ app.post("/login" , async (req,res) => {
         const isPasswordValid = await bcrypt.compare(password , user.password);
 
         if(isPasswordValid){
+            // create a JWT token 
+            const token = await jwt.sign({_id : user._id} , "Dev@Tinder$790");
+            console.log(token);
+
+            // Add the token to the cookie and send response back to the user
+            res.cookie("token",token);
             res.status(200).send("Login Successfull");
         }
         else{
@@ -69,6 +79,40 @@ app.post("/login" , async (req,res) => {
     }
 })
 
+// profile 
+
+app.get("/profile", async (req,res)=>{
+
+    try{
+        const cookies = req.cookies;
+
+    const {token} = cookies;
+    if(!token){
+        throw new Error("Invalid Token");   
+    }
+
+    //validate token
+    // validating the token
+    const DecodedMessage = await jwt.verify(token , "Dev@Tinder$790" );
+
+    //getting the id from the message
+    const {_id} =  DecodedMessage;
+
+    console.log("Logged In user is " + _id);
+    // getting the user based on the login id
+    const user = await User.findById(_id);
+
+    if(!user){
+        throw new Error("User not found");
+    }
+    res.status(200).send(user);
+
+    res.status(200).send("getting cookie");
+    }
+    catch(err){
+        res.status(400).send("Error : " + err );
+    }
+})
 // find user by email
 
 app.get("/user", async (req, res) => {
@@ -163,7 +207,7 @@ app.patch("/user/:userId", async (req, res) => {
 })
 
 connectDB().then(() => {
-
+    console.log("connected to database successfully");
     app.listen(3000, () => {
         console.log("Server is successfully listening on port 3000");
     });

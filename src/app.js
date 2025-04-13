@@ -8,6 +8,7 @@ const validator = require('validator')
 const { validateSignupData } = require("./utils/validation")
 const cookieParser = require("cookie-parser")
 const jwt = require("jsonwebtoken")
+const { userAuth } = require('./Middlewares/auth');
 
 //middlewares
 app.use(express.json());
@@ -20,9 +21,9 @@ app.post("/signup", async (req, res) => {
     try {
         validateSignupData(req);
 
-        const {firstName , lastName , emailId , password } = req.body
+        const { firstName, lastName, emailId, password } = req.body
         // Encrypting the password 
-        const passwordHash = await bcrypt.hash(password , 10 );
+        const passwordHash = await bcrypt.hash(password, 10);
         console.log(passwordHash);
 
         // creating a new user
@@ -30,7 +31,7 @@ app.post("/signup", async (req, res) => {
             firstName,
             lastName,
             emailId,
-            password:passwordHash
+            password: passwordHash
         });
 
         await user.save();
@@ -43,9 +44,9 @@ app.post("/signup", async (req, res) => {
 
 // login path 
 
-app.post("/login" , async (req,res) => {
-    try{
-        const {emailId , password}  =  req.body;
+app.post("/login", async (req, res) => {
+    try {
+        const { emailId, password } = req.body;
 
         // if(!validator.isEmail(emailId)){
         //     throw new Error("Please provide a valid email");
@@ -53,64 +54,49 @@ app.post("/login" , async (req,res) => {
 
         // finding the user with the email he provided 
 
-        const user = await User.findOne({emailId:emailId});
+        const user = await User.findOne({ emailId: emailId });
 
-        if(!user){
+        if (!user) {
             throw new Error("Invalid Credentials")
         }
-        const isPasswordValid = await bcrypt.compare(password , user.password);
+        const isPasswordValid = await user.ValidatePassword(password);
 
-        if(isPasswordValid){
+        if (isPasswordValid) {
             // create a JWT token 
-            const token = await jwt.sign({_id : user._id} , "Dev@Tinder$790");
-            console.log(token);
+            const token = await user.getJWT();
 
             // Add the token to the cookie and send response back to the user
-            res.cookie("token",token);
+            res.cookie("token", token);
             res.status(200).send("Login Successfull");
         }
-        else{
+        else {
             throw new Error("Password is not correct");
         }
-        
     }
-    catch(err){
-        res.status(400).send("Error : " + err );
+    catch (err) {
+        res.status(400).send("Error : " + err);
     }
+})
+
+app.post("/sendConnectionRequest", userAuth, async(req,res)=>{
+    
+    const user = req.user;
+
+    console.log("sending Connection Request");
+
+    res.status(200).send(user.firstname + "send a connection request");
 })
 
 // profile 
 
-app.get("/profile", async (req,res)=>{
+app.get("/profile", userAuth, async (req, res) => {
 
-    try{
-        const cookies = req.cookies;
-
-    const {token} = cookies;
-    if(!token){
-        throw new Error("Invalid Token");   
+    try {
+        const user = req.user;
+        res.status(200).send(user);
     }
-
-    //validate token
-    // validating the token
-    const DecodedMessage = await jwt.verify(token , "Dev@Tinder$790" );
-
-    //getting the id from the message
-    const {_id} =  DecodedMessage;
-
-    console.log("Logged In user is " + _id);
-    // getting the user based on the login id
-    const user = await User.findById(_id);
-
-    if(!user){
-        throw new Error("User not found");
-    }
-    res.status(200).send(user);
-
-    res.status(200).send("getting cookie");
-    }
-    catch(err){
-        res.status(400).send("Error : " + err );
+    catch (err) {
+        res.status(400).send("Error : " + err);
     }
 })
 // find user by email
@@ -181,19 +167,19 @@ app.patch("/user/:userId", async (req, res) => {
         const ALLOWED_UPADTES = [
             "photoUrl", "about", "gender", "age", "skills"
         ]
-    
+
         const isUpdateAllowed = Object.keys(data).every((k) =>
             ALLOWED_UPADTES.includes(k)
         )
-    
-        if(!isUpdateAllowed){
+
+        if (!isUpdateAllowed) {
             throw new Error("Update not allowed");
         }
 
-        if(data?.skills.length > 10){
+        if (data?.skills.length > 10) {
             throw new error("skills cannot be more than 10")
         };
-        
+
         const user = await User.findByIdAndUpdate({ _id: userId }, data, {
             returnDocument: "after",
             runValidators: true,

@@ -8,7 +8,6 @@ const userAuth = async (req, res, next) => {
         const cookies = req.cookies;
 
         const { token } = cookies;
-        console.log("Token from cookies:", token);
 
         if (!token) {
             throw new Error("Token is not Valid!!!!!!!!1")

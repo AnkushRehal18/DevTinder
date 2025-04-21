@@ -23,7 +23,7 @@ requestRouter.post("/request/send/:status/:touserId", userAuth, async(req,res)=>
 
         const toUser = await User.findById(toUserId);
 
-        if(!toUserId){
+        if(!toUser){
             return res.status(404).json({
                 message:"User Not Found"
             })
@@ -54,7 +54,7 @@ requestRouter.post("/request/send/:status/:touserId", userAuth, async(req,res)=>
         const data = await connectionRequest.save();
 
         res.json({
-            message:"Connection Request Sent Successfully!!!!",
+            message: req.user.firstName + " is " + status + " in " + toUser.firstName,
             data
         })
     }
@@ -63,5 +63,41 @@ requestRouter.post("/request/send/:status/:touserId", userAuth, async(req,res)=>
     }
 })
 
+//request review api 
 
+requestRouter.post("/request/review/:status/:requestId", userAuth, async(req,res)=>{
+
+    try{
+        const loggedInUser = req.user;
+        const { status , requestId } = req.params;
+        // check allowed status 
+
+        const allowedStatus = ["accepted", "rejected"];
+
+        if(!allowedStatus.includes(status)){
+            return res.status(400).json({message:"Status is not allowed"})
+        }
+
+        // checking if connection Request is present in my db 
+
+        const connectionRequest = await ConnectionRequest.findOne({
+            _id: requestId,
+            toUserId : loggedInUser._id,
+            status : "interested"
+        })
+
+        if(!connectionRequest){
+            return res.status(404).json({message:"Connection Request is not found"})
+        }
+
+        connectionRequest.status = status;
+
+        //saving to the database
+        await connectionRequest.save();
+
+        res.status(200).json({message:"Connection Request " + status})
+    }catch(err){
+        res.status(400).send("ERR : " + err.message);
+    }
+})
 module.exports = requestRouter;

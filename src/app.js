@@ -7,6 +7,9 @@ const authRouter = require('./routes/auth');
 const profileRouter = require('./routes/profile');
 const requestRouter = require('./routes/request');
 const userRouter = require('./routes/user');
+const chatRouter = require('./routes/chat');
+const http = require('http')
+const intializeScoket = require('./utils/socket');
 
 require('dotenv').config();
 //middlewares
@@ -21,10 +24,14 @@ app.use("/",authRouter)
 app.use("/",profileRouter)
 app.use("/",requestRouter)
 app.use("/",userRouter)
+app.use("/",chatRouter)
+
+const server = http.createServer(app);
+intializeScoket(server);
 
 connectDB().then(() => {
     console.log("connected to database successfully");
-    app.listen(process.env.PORT, () => {
+    server.listen(process.env.PORT, () => {
         console.log("Server is successfully listening on port 3000");
     });
 }).catch((err) => {

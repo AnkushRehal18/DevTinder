@@ -15,13 +15,11 @@ io.on("connection",(socket)=>{
 
     socket.on("joinChat",({userId, targetUserId })=>{
         const roomId = [userId, targetUserId].sort().join("_");
-        console.log("joining to room with id " + roomId);
         socket.join(roomId);
     });
 
     socket.on("sendMesage",async ({firstName, userId, targetUserId, text})=>{
         const roomId = [userId, targetUserId].sort().join("_");
-        console.log(firstName + " " + text);
 
         //saving messages to the database
 
@@ -49,7 +47,7 @@ io.on("connection",(socket)=>{
             await chat.save();
             io.to(roomId).emit("messageReceived",{firstName , text, senderId: userId})    
         }catch(err){
-            res.status(400).json({message:"Something Went Wrong"});
+            throw new Error("Something went Wrong");
         }
 
     });

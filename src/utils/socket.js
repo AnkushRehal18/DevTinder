@@ -47,7 +47,9 @@ io.on("connection",(socket)=>{
             await chat.save();
             io.to(roomId).emit("messageReceived",{firstName , text, senderId: userId})    
         }catch(err){
-            throw new Error("Something went Wrong");
+            socket.emit("messageError", {
+            error: "Could not send message. Please try again later."
+        });
         }
 
     });

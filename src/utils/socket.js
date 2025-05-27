@@ -1,65 +1,65 @@
-const socket = require('socket.io');
-const { Chat } = require('../models/chat');
+const socket = require("socket.io");
+const crypto = require("crypto");
+const { Chat } = require("../models/chat");
+const ConnectionRequest = require("../models/connectionRequest");
 
-const intializeScoket = (server)=>{
-    const socket = require('socket.io');
+const getSecretRoomId = (userId, targetUserId) => {
+  return crypto
+    .createHash("sha256")
+    .update([userId, targetUserId].sort().join("$"))
+    .digest("hex");
+};
 
-const io = socket(server , {
-    cors:{
-        origin:"http://localhost:5173",
+const initializeSocket = (server) => {
+  const io = socket(server, {
+    cors: {
+      origin: "http://localhost:5173",
     },
-});
+  });
 
-//all the events will be handled here that will do for real time messages
-io.on("connection",(socket)=>{
-
-    socket.on("joinChat",({userId, targetUserId })=>{
-        const roomId = [userId, targetUserId].sort().join("_");
-        socket.join(roomId);
+  io.on("connection", (socket) => {
+    socket.on("joinChat", ({ firstName, userId, targetUserId }) => {
+      const roomId = getSecretRoomId(userId, targetUserId);
+      console.log(firstName + " joined Room : " + roomId);
+      socket.join(roomId);
     });
 
-    socket.on("sendMesage",async ({firstName, userId, targetUserId, text})=>{
-        const roomId = [userId, targetUserId].sort().join("_");
+    socket.on(
+      "sendMessage",
+      async ({ firstName, lastName, userId, targetUserId, text }) => {
+        // Save messages to the database
+        try {
+          const roomId = getSecretRoomId(userId, targetUserId);
+          console.log(firstName + " " + text);
 
-        //saving messages to the database
+          // TODO: Check if userId & targetUserId are friends
 
-        try{
-            //checking if chat exists or not
-            let chat = await Chat.findOne({
-                participants :{$all : [
-                    userId, targetUserId
-                ]}
+          let chat = await Chat.findOne({
+            participants: { $all: [userId, targetUserId] },
+          });
+
+          if (!chat) {
+            chat = new Chat({
+              participants: [userId, targetUserId],
+              messages: [],
             });
+          }
 
-            //new chat 
-            if(!chat){
-                chat = new Chat({
-                    participants : [userId , targetUserId],
-                    messages: [],
-                })
-            };
+          chat.messages.push({
+            senderId: userId,
+            text,
+          });
 
-            chat.messages.push({
-                senderId: userId,
-                text
-            });
-
-            await chat.save();
-            io.to(roomId).emit("messageReceived",{firstName , text, senderId: userId})    
-        }catch(err){
-            socket.emit("messageError", {
-            error: "Could not send message. Please try again later."
-        });
+          await chat.save();
+          io.to(roomId).emit("messageReceived", { firstName, lastName, text });
+        } catch (err) {
+          console.log(err);
         }
+      }
+    );
 
-    });
+    socket.on("disconnect", () => {});
+  });
+};
 
-    socket.on("disconnect",()=>{
-
-    });
-
-
-});
-}
-
-module.exports = intializeScoket
+module.exports = initializeSocket;
